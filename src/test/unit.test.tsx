@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, renderHook } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import { ApiError } from '../api/client';
 import { useSlowHint } from '../components/States';
 import { computeLayout, GAP, H_PADDING } from '../hooks/useColumns';
@@ -27,6 +28,36 @@ describe('computeLayout (responsive grid)', () => {
     expect(used).toBeLessThanOrEqual(inner); // never overflows the screen
     expect(inner - used).toBeLessThan(columns); // rounding slack is under 1px per card
     expect(cardWidth).toBeGreaterThan(100); // posters stay tappable/legible even on tiny screens
+  });
+
+  describe('on web: fixed 2 / 3 / 4 breakpoints for the desktop submission views', () => {
+    const realOS = Platform.OS;
+    beforeAll(() => {
+      Platform.OS = 'web';
+    });
+    afterAll(() => {
+      Platform.OS = realOS;
+    });
+
+    it.each([
+      [320, 2],
+      [767, 2],
+      [768, 3],
+      [1024, 3],
+      [1279, 3],
+      [1280, 4],
+      [1920, 4],
+    ])('%ipx wide -> %i columns', (width, columns) => {
+      expect(computeLayout(width).columns).toBe(columns);
+    });
+
+    it('never overflows the row at any breakpoint', () => {
+      for (const width of [320, 768, 1024, 1280, 1920]) {
+        const { columns, cardWidth } = computeLayout(width);
+        const inner = width - 2 * H_PADDING;
+        expect(columns * cardWidth + GAP * (columns - 1)).toBeLessThanOrEqual(inner);
+      }
+    });
   });
 });
 

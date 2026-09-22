@@ -32,7 +32,7 @@ Invariants (do not break):
 
 ## 2. Stack, commands, Expo rules
 
-Node >= 22.13 (developed on 24). Backend: Express 5, zod, lru-cache, `@libsql/client` (SQLite-compatible: a local `file:` URL for dev/tests, a Turso `libsql://` URL + auth token in production — see [db/db.ts](backend/src/db/db.ts)), tsx, Vitest, supertest. App: Expo 57, React 19.2.3, React Native 0.86, **React Navigation 7** (native-stack + bottom-tabs), TanStack Query 5, `expo-image`, `@react-native-async-storage/async-storage`, `expo-crypto`, `@expo/vector-icons`, plain `StyleSheet` (no UI kit). App tests: `jest-expo` + `@testing-library/react-native` 14 (+ `test-renderer`).
+Node >= 22.13 (developed on 24). Backend: Express 5, zod, lru-cache, `@libsql/client` (SQLite-compatible: a local `file:` URL for dev/tests, a Turso `libsql://` URL + auth token in production — see [db/db.ts](backend/src/db/db.ts)), tsx, Vitest, supertest. App: Expo 57, React 19.2.3, React Native 0.86, **React Navigation 7** (native-stack + bottom-tabs), TanStack Query 5, `expo-image`, `@react-native-async-storage/async-storage`, `expo-crypto`, `@expo/vector-icons`, plain `StyleSheet` (no UI kit), `react-dom`/`react-native-web` (web export only). App tests: `jest-expo` + `@testing-library/react-native` 14 (+ `test-renderer`).
 
 | Task | Command (repo root) |
 |---|---|
@@ -45,6 +45,7 @@ Node >= 22.13 (developed on 24). Backend: Express 5, zod, lru-cache, `@libsql/cl
 | Typecheck both | `npm run typecheck` |
 | Live TMDB check (needs real token) | `npm run verify:tmdb -- --api http://localhost:4000` |
 | Bundle check (no device needed) | `npx expo export --platform android --output-dir dist-check` (then delete `dist-check`) |
+| Web build (for the submission video / Vercel) | `npx expo export --platform web` (outputs to `dist/`, gitignored) |
 
 **Expo changes every SDK: do not trust memory.** Before writing code that touches an Expo/React Native/React Navigation API, read the versioned docs (`https://docs.expo.dev/versions/v57.0.0/...`, index at `https://docs.expo.dev/llms.txt`). Known SDK 57 facts: `StyleSheet.absoluteFillObject` is gone (use `StyleSheet.absoluteFill`); `expo-crypto` has a synchronous `randomUUID()`; `expo-image` uses `contentFit` and `placeholder`; RNTL 14 is async (section 9).
 - Add packages with `npx expo install <pkg>` (resolves SDK-compatible versions), run from the repo root. Never guess versions.
@@ -56,6 +57,7 @@ Node >= 22.13 (developed on 24). Backend: Express 5, zod, lru-cache, `@libsql/cl
 Backend config is env-driven via [backend/src/config.ts](backend/src/config.ts) (zod-validated); never read `process.env` elsewhere in the backend. New settings go in `config.ts` **and** `backend/.env.example`. The app's only setting is `EXPO_PUBLIC_API_URL` (root `.env`, template `.env.example`). The root `.env` is for `EXPO_PUBLIC_*` only; `TMDB_TOKEN` belongs solely in `backend/.env` (which the backend loads by file path, independent of the working directory).
 - **Root package layout:** the root `package.json` is the app (`main: index.ts`) and also declares `workspaces: ["shared","backend"]`. Do not run Expo commands in `backend/`. Do not add a `main` or Expo config anywhere else. Jest is scoped to `src/` (`roots`) and `tsconfig.json` includes only app files, so backend code and Vitest tests never leak into app tooling; keep it that way.
 - **Deployment:** the backend runs on Render's free tier (`trackzio-backend`, `srv-dap8gkjm8hqs73a4a740`) at `https://trackzio-backend.onrender.com`, `autoDeploy` on push to `main` on GitHub (`techWithKeerthana/movie-discovery-app`); its `DATABASE_URL`/`DATABASE_AUTH_TOKEN` point at a Turso database, since Render's own disk does not survive a redeploy or a sleep/wake cycle. The committed root `.env` points `EXPO_PUBLIC_API_URL` at that live URL, so the app needs no local backend by default. Render env vars are managed via its dashboard/API, never committed. A push to `main` redeploys the live backend — treat it accordingly (run the full verification in section 9 first).
+- **Web export:** `react-dom`/`react-native-web` are installed only so `npx expo export --platform web` (SPA, `dist/`) works for the submission video and a Vercel deploy (`vercel.json` at the repo root); the native app is still the primary target. Root `.env` is gitignored, so **Vercel's own `EXPO_PUBLIC_API_URL` project env var** (pointing at the live Render URL) must be set before deploying, or the build bakes in the `localhost:4000` fallback. `computeLayout` (`src/hooks/useColumns.ts`) branches on `Platform.OS === 'web'` for fixed 2/3/4-column breakpoints (768px/1280px); native columns are untouched.
 
 ## 3. Coding standards
 
