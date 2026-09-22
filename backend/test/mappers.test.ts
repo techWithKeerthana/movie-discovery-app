@@ -78,6 +78,13 @@ describe('parseMovieDetail', () => {
     expect(d.runtimeMinutes).toBe(117);
   });
 
+  it('shows only the top 10 cast members, ordered by billing order', () => {
+    const cast = Array.from({ length: 15 }, (_, i) => ({ id: i, name: `Actor ${i}`, order: 14 - i })); // reverse order on purpose
+    const d = parseMovieDetail({ ...movie(), credits: { cast } });
+    expect(d.cast).toHaveLength(10);
+    expect(d.cast.map((c) => c.name)).toEqual(['Actor 14', 'Actor 13', 'Actor 12', 'Actor 11', 'Actor 10', 'Actor 9', 'Actor 8', 'Actor 7', 'Actor 6', 'Actor 5']);
+  });
+
   it('survives a movie with no credits/videos/similar/runtime', () => {
     const d = parseMovieDetail({ id: 1, title: 'Sparse' });
     expect(d).toMatchObject({ cast: [], similar: [], trailerKey: null, runtimeMinutes: null, tagline: '', genres: [] });

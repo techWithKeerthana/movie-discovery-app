@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FadeIn } from '../components/FadeIn';
 import { MovieList } from '../components/MovieList';
 import { Button, EmptyState, ErrorState, SkeletonGrid } from '../components/States';
 import { useWishlist } from '../hooks/useWishlist';
@@ -33,20 +34,24 @@ export function WishlistScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <MovieList
-        testID="wishlist-list"
-        data={items}
-        header={header}
-        empty={empty}
-        refreshing={query.isRefetching}
-        onRefresh={() => query.refetch()}
-      />
+      <FadeIn ready={!query.isPending} style={styles.fade}>
+        <MovieList
+          testID="wishlist-list"
+          data={items}
+          header={header}
+          empty={empty}
+          refreshing={query.isRefetching}
+          onRefresh={() => query.refetch()}
+          swipeToRemove
+        />
+      </FadeIn>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  fade: { flex: 1 },
   headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingTop: 12, paddingBottom: 12 },
   h1: { color: colors.text, fontSize: 22, fontWeight: '700' },
   count: { color: colors.muted, fontSize: 13 },

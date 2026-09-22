@@ -129,6 +129,24 @@ describe('Wishlist screen states', () => {
     expect(await screen.findByText('Your wishlist is empty')).toBeOnTheScreen();
   });
 
+  it('swiping a card fully open removes it from the wishlist (same optimistic path as the heart)', async () => {
+    const api = mockApi();
+    await renderApp();
+    await loaded();
+    const user = userEvent.setup();
+    await user.press(screen.getByText('Wishlist')); // switch to an empty wishlist first
+    await user.press(screen.getByText('Discover'));
+    await user.press(add(1));
+    await waitFor(() => expect(api.wishlists.size).toBe(1));
+    await user.press(screen.getByText('Wishlist'));
+    expect(await screen.findByText('1 saved')).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: 'simulate full swipe' }));
+
+    expect(await screen.findByText('Your wishlist is empty')).toBeOnTheScreen();
+    await waitFor(() => expect([...api.wishlists.values()].flat()).toHaveLength(0));
+  });
+
   it('a loading failure shows an error and "Try again" recovers', async () => {
     let fail = true;
     mockApi((u, i) => (u.pathname === '/api/wishlist' && (i?.method ?? 'GET') === 'GET' && fail ? apiError('INTERNAL', 'oops', true, 500) : undefined));

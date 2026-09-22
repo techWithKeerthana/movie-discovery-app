@@ -1,17 +1,21 @@
-import { useScrollToTop } from '@react-navigation/native';
+import { useNavigation, useScrollToTop } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SORT_OPTIONS, type MovieSummary } from '@trackzio/shared';
+import { FadeIn } from '../components/FadeIn';
 import { GenreChips } from '../components/GenreChips';
 import { MovieList } from '../components/MovieList';
 import { OptionPicker, type Option } from '../components/OptionPicker';
+import { RecentlyViewedRow } from '../components/RecentlyViewedRow';
 import { SearchBar } from '../components/SearchBar';
 import { Button, EmptyState, ErrorState, InlineError, SkeletonGrid, SlowHint, StaleBanner, useSlowHint } from '../components/States';
 import { H_PADDING } from '../hooks/useColumns';
 import { useGenres, useMovieList, type Filters } from '../hooks/queries';
-import type { TabParamList } from '../navigation/types';
+import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
+import type { RootStackParamList, TabParamList } from '../navigation/types';
 import { colors } from '../theme';
 
 const TMDB_PAGE_CAP = 500;
@@ -33,6 +37,8 @@ export function DiscoverScreen({ route }: BottomTabScreenProps<TabParamList, 'Di
   const [filters, setFilters] = useState<Filters>(INITIAL);
   const listRef = useRef<FlatList<MovieSummary>>(null);
   useScrollToTop(listRef); // tapping the active tab scrolls back to the top
+  const recentlyViewed = useRecentlyViewed();
+  const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const searching = Boolean(filters.q);
   // While searching, sort is always relevance (TMDB cannot sort search results). The chosen sort is kept in state so it
@@ -72,6 +78,7 @@ export function DiscoverScreen({ route }: BottomTabScreenProps<TabParamList, 'Di
 
   const header = (
     <View style={styles.header}>
+      <RecentlyViewedRow movies={recentlyViewed} onOpen={(m) => rootNavigation.navigate('MovieDetail', { id: m.id, title: m.title })} />
       <GenreChips genres={genres.data} selected={filters.genre} onSelect={(genre) => update({ genre })} />
       <View style={styles.pickers}>
         <OptionPicker
@@ -147,24 +154,27 @@ export function DiscoverScreen({ route }: BottomTabScreenProps<TabParamList, 'Di
       <View style={styles.searchRow}>
         <SearchBar value={filters.q} onChange={(q) => update({ q })} />
       </View>
-      <MovieList
-        testID="discover-list"
-        listRef={listRef}
-        data={items}
-        header={header}
-        empty={empty}
-        footer={footer}
-        onEndReached={onEndReached}
-        refreshing={isRefetching && !isFetchingNextPage && !isPlaceholderData}
-        onRefresh={() => refetch()}
-        dim={isPlaceholderData}
-      />
+      <FadeIn ready={!isPending} style={styles.fade}>
+        <MovieList
+          testID="discover-list"
+          listRef={listRef}
+          data={items}
+          header={header}
+          empty={empty}
+          footer={footer}
+          onEndReached={onEndReached}
+          refreshing={isRefetching && !isFetchingNextPage && !isPlaceholderData}
+          onRefresh={() => refetch()}
+          dim={isPlaceholderData}
+        />
+      </FadeIn>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  fade: { flex: 1 },
   searchRow: { paddingHorizontal: H_PADDING, paddingTop: 8, paddingBottom: 8 },
   header: { gap: 12, paddingBottom: 12 },
   pickers: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

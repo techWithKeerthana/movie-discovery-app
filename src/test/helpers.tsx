@@ -1,12 +1,21 @@
 import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { MovieSummary, Page } from '@trackzio/shared';
+import { OfflineBanner } from '../components/OfflineBanner';
 import { ToastProvider } from '../components/Toast';
+import { useOnline } from '../hooks/useOnline';
+import { useSyncOfflineWishlist } from '../hooks/useWishlist';
 import { navTheme, RootNavigator } from '../navigation/RootNavigator';
 import type { RootStackParamList } from '../navigation/types';
 import { createQueryClient } from '../queryClient';
+
+function OfflineSync() {
+  useSyncOfflineWishlist(useOnline());
+  return null;
+}
 
 export const summary = (id: number, over: Partial<MovieSummary> = {}): MovieSummary => ({
   id,
@@ -112,18 +121,29 @@ export async function renderApp() {
   const queryClient = createQueryClient();
   const d = queryClient.getDefaultOptions();
   queryClient.setDefaultOptions({ ...d, queries: { ...d.queries, retryDelay: 0 } }); // keep the retry, drop the wait
-  const utils = await render(
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <NavigationContainer ref={navRef} theme={navTheme}>
-            <RootNavigator />
-          </NavigationContainer>
-        </ToastProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>,
+  // A function, not a stored element: React bails out of re-rendering a subtree when the exact same element
+  // REFERENCE is passed again (props unchanged by Object.is), so reusing one `const tree` for every `settle()`
+  // call would silently skip re-invoking OfflineBanner/OfflineSync — they read a jest-mocked global (NetInfo),
+  // not props or context, so nothing in React's own data flow would otherwise tell it to redo that work.
+  const buildTree = () => (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            <NavigationContainer ref={navRef} theme={navTheme}>
+              <RootNavigator />
+            </NavigationContainer>
+            <OfflineBanner />
+            <OfflineSync />
+          </ToastProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
-  return { navRef, queryClient, ...utils };
+  const utils = await render(buildTree());
+  /** Re-runs every hook in the tree (e.g. after changing the NetInfo mock's return value). */
+  const settle = () => utils.rerender(buildTree());
+  return { navRef, queryClient, settle, ...utils };
 }
 
 export const deferred = <T,>() => {

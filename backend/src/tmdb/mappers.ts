@@ -134,7 +134,7 @@ export function parseMovieDetail(raw: unknown): MovieDetail {
       return r.success ? [r.data] : [];
     })
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-    .slice(0, 12)
+    .slice(0, 10)
     .map((c) => ({
       id: c.id,
       name: c.name,

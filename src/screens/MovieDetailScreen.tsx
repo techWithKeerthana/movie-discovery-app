@@ -6,9 +6,11 @@ import type { MovieDetail, MovieSummary } from '@trackzio/shared';
 import { toSummary } from '../api/movies';
 import { MovieCard } from '../components/MovieCard';
 import { PosterImage } from '../components/PosterImage';
+import { FadeIn } from '../components/FadeIn';
 import { ErrorState, SkeletonBlock, SlowHint, StaleBanner, useSlowHint } from '../components/States';
 import { useToast } from '../components/Toast';
 import { useMovieDetail } from '../hooks/queries';
+import { useRecordRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { useToggleWishlist, useWishlist } from '../hooks/useWishlist';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, radius, TOUCH } from '../theme';
@@ -24,11 +26,17 @@ export function MovieDetailScreen({ route, navigation }: Props) {
   const toast = useToast();
   const { width } = useWindowDimensions();
   const wide = width >= 700;
+  const recordViewed = useRecordRecentlyViewed();
 
   const title = data?.data.title;
   useEffect(() => {
     if (title) navigation.setOptions({ title });
   }, [title, navigation]);
+
+  // "Opened" means the detail actually loaded, not just that a card was tapped.
+  useEffect(() => {
+    if (data) recordViewed(toSummary(data.data));
+  }, [data, recordViewed]);
 
   if (isPending) {
     return (
@@ -58,6 +66,7 @@ export function MovieDetailScreen({ route, navigation }: Props) {
   };
 
   return (
+    <FadeIn style={styles.fade}>
     <ScrollView contentContainerStyle={styles.scroll}>
       {data.stale && <StaleBanner />}
       <View style={styles.hero}>
@@ -139,6 +148,7 @@ export function MovieDetailScreen({ route, navigation }: Props) {
 
       {m.similar.length > 0 && <SimilarRow movies={m.similar} onOpen={(s) => navigation.push('MovieDetail', { id: s.id, title: s.title })} />}
     </ScrollView>
+    </FadeIn>
   );
 }
 
@@ -180,6 +190,7 @@ function SimilarRow({ movies, onOpen }: { movies: MovieSummary[]; onOpen: (m: Mo
 
 const styles = StyleSheet.create({
   pad: { padding: 16, gap: 12 },
+  fade: { flex: 1 },
   skeletonRow: { flexDirection: 'row', gap: 16 },
   scroll: { paddingBottom: 32 },
   padH: { paddingHorizontal: 16 },
