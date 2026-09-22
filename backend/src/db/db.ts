@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { createClient, type Client } from '@libsql/client';
+import { createClient, type Client, type InArgs } from '@libsql/client';
 
 /**
  * libSQL (SQLite-compatible). `url` is `file:./data/trackzio.db` for local dev/tests (no external
@@ -10,9 +10,12 @@ import { createClient, type Client } from '@libsql/client';
 export type Db = Client;
 
 /**
- * Versioned migrations tracked with `PRAGMA user_version`. Append new entries; never edit old ones.
- * `wishlist` stores a JSON snapshot of the display fields next to (device_id, movie_id), so the
- * wishlist renders without TMDB, while all other movie metadata stays cache-only.
+ * Versioned migrations, tracked in `_schema_migrations` (one row per applied migration, id = its index).
+ * NOT `PRAGMA user_version`: Turso's remote (Hrana) protocol accepts reading it but rejects writing it
+ * ("SQL not allowed statement"), even though it works over a local `file:` connection — a real gap
+ * between the two transports that a plain table sidesteps identically on both. Append new entries; never
+ * edit a shipped one. `wishlist` stores a JSON snapshot of the display fields next to (device_id,
+ * movie_id), so the wishlist renders without TMDB, while all other movie metadata stays cache-only.
  */
 const MIGRATIONS: string[] = [
   `CREATE TABLE wishlist (
@@ -29,17 +32,17 @@ export async function openDatabase(url: string, authToken?: string): Promise<Db>
   if (url.startsWith('file:')) mkdirSync(dirname(url.slice('file:'.length)), { recursive: true });
   const db = createClient({ url, authToken });
   await db.execute('PRAGMA foreign_keys = ON');
-  const { rows } = await db.execute('PRAGMA user_version');
-  let version = Number(rows[0]?.user_version ?? 0);
+  await db.execute('CREATE TABLE IF NOT EXISTS _schema_migrations (id INTEGER PRIMARY KEY)');
+  const { rows } = await db.execute('SELECT COUNT(*) AS n FROM _schema_migrations');
+  let version = Number(rows[0]?.n ?? 0);
   for (; version < MIGRATIONS.length; version++) {
-    // The migration's statements AND the version bump run as one batch (libSQL runs a batch as a single
-    // transaction), so a crash mid-migration can never leave the version bumped without the schema, or
-    // the schema changed without the version bumped.
-    const statements = MIGRATIONS[version]!
+    // The migration's statements AND recording it as applied run as one batch (libSQL runs a batch as a
+    // single transaction), so a crash mid-migration can never leave one applied without the other.
+    const statements: (string | { sql: string; args: InArgs })[] = MIGRATIONS[version]!
       .split(';')
       .map((s) => s.trim())
       .filter(Boolean);
-    statements.push(`PRAGMA user_version = ${version + 1}`);
+    statements.push({ sql: 'INSERT INTO _schema_migrations (id) VALUES (?)', args: [version] });
     await db.batch(statements, 'write');
   }
   return db;

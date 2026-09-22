@@ -62,10 +62,10 @@ describe('WishlistService (libSQL)', () => {
   it('runs migrations once: reopening an existing database does not fail or wipe data', async () => {
     const first = await open('migrate.db');
     await new WishlistService(first).add(D1, m(9));
-    expect(Number((await first.execute('PRAGMA user_version')).rows[0]?.user_version)).toBe(1);
+    expect(Number((await first.execute('SELECT COUNT(*) AS n FROM _schema_migrations')).rows[0]?.n)).toBe(1);
     first.close();
     const again = await open('migrate.db');
-    expect(Number((await again.execute('PRAGMA user_version')).rows[0]?.user_version)).toBe(1);
+    expect(Number((await again.execute('SELECT COUNT(*) AS n FROM _schema_migrations')).rows[0]?.n)).toBe(1);
     expect(await new WishlistService(again).list(D1)).toHaveLength(1);
   });
 
