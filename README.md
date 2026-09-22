@@ -120,11 +120,30 @@ A follow-up discussion or live coding session may follow submission, possibly wi
 
 ## Setup Instructions
 
+**Live demo:**
+
+| | URL |
+|---|---|
+| Web app (Vercel) | `<TODO: paste your Vercel deployment URL here>` |
+| Backend API (Render) | `https://trackzio-backend.onrender.com` |
+| Repository (GitHub) | `https://github.com/techWithKeerthana/movie-discovery-app` |
+
+The web build and the native app share one backend; both are already pointed at the live Render URL, so grading needs no local setup at all.
+
+**Quickest path (no local backend):**
+
+```bash
+npm install
+npx expo start -c
+```
+
+Scan the QR code with Expo Go, or press `a` / `i` for an emulator/simulator. `EXPO_PUBLIC_API_URL` in the committed root `.env` already points at the live Render backend, so this is genuinely all that's needed — the rest of this section is only for running against your own local backend (e.g. while changing backend code).
+
 **Prerequisites:** Node.js 22.13+ (built and tested on Node 24), a free TMDB account, and a way to run the app: **Expo Go** on a phone (iOS/Android; it must support Expo SDK 57, so keep it updated), or an Android emulator / iOS simulator. The wishlist database needs no setup for local dev (a local file, created automatically); a cloud deployment needs a free [Turso](https://turso.tech) database — see **Database** below.
 
-**Live backend:** deployed on Render's free tier at `https://trackzio-backend.onrender.com`, wishlist on a Turso database (so it survives a redeploy/restart, unlike Render's own disk). `EXPO_PUBLIC_API_URL` in the committed root `.env` already points at it, so **running the app needs no local backend at all**: `npm install`, then `npx expo start -c`, scan the QR code. Two caveats: Render's free plan sleeps after ~15 min idle, so the *first* request after a while can take 30-60s (the app's own loading/slow-network states cover this, no code change needed) and the in-memory TMDB response cache resets on that wake, same as any restart (already an accepted, documented limitation below). To run against your own backend instead (e.g. while changing backend code), follow the two-terminal setup below and change `EXPO_PUBLIC_API_URL` back to your local address.
+Two caveats on the live backend, both already handled by the app rather than needing a workaround: Render's free plan sleeps after ~15 min idle, so the *first* request after a while can take 30-60s (the existing loading/slow-network states cover this); and the in-memory TMDB response cache resets on that wake, same as any restart (an accepted, documented limitation below).
 
-The backend and the Expo app run side by side, in two terminals:
+**To run against your own backend instead** (e.g. while changing backend code), use the two-terminal setup below and point `EXPO_PUBLIC_API_URL` back at your local address:
 
 ```bash
 # 0. Install everything once, from the repo root (the Expo app IS the root package; backend and shared are workspaces)
@@ -258,8 +277,8 @@ talks to TMDB, so every resilience rule is in one place and testable with a fake
 **Maintainability.** Shared TypeScript contract between backend and app; dependency injection in `createApp` (tests use a fake `fetch` and a temp libSQL file); one error type (`AppError`) mapped in one middleware; append-only DB migrations; typed navigation params.
 
 **Testing strategy.**
-- *Backend (Vitest, 59 tests, no network or token):* mappers fed malformed TMDB data; the TMDB client's cache, TTL expiry, LRU eviction, single-flight (including shared failures), retry policy, circuit breaker (open / probe / reset), stale-while-error, rate limiter and credential handling; the service's TMDB parameter mapping and search-mode refinement; the libSQL wishlist (persistence across connections, migrations, corrupt rows, per-device isolation, cap, SQL-injection-shaped input); and the HTTP contract via supertest.
-- *App (Jest + React Native Testing Library, 72 tests):* the real navigators and screens with a fake backend that stores wishlists per device id. It covers loading / empty / error / retry / stale states on every screen; debounce; cancellation of a superseded search (asserting the first request's `AbortSignal` fires); search-mode sort and total behaviour; filters; infinite scroll (append, de-duplicate, next-page failure, 500-page end, empty-page guard); navigation context (Back returns to the same mounted Discover screen with search text, filters and loaded pages intact and no refetch; tab switching; detail from the wishlist; "More like this"; genre jump); the optimistic heart with rollback; wishlist persistence across a simulated app restart (same device id from storage, list read back from the server, and a fresh device sees an empty list); API client behaviour (env-driven base URL, headers, error mapping, non-JSON errors, aborts); the responsive grid maths. The navigation-state tests were mutation-checked (making Discover forget its state on blur makes them fail).
+- *Backend (Vitest, 70 tests, no network or token):* mappers fed malformed TMDB data; the TMDB client's cache, TTL expiry, LRU eviction, single-flight (including shared failures), retry policy, circuit breaker (open / probe / reset), stale-while-error, rate limiter and credential handling; the service's TMDB parameter mapping, search-mode refinement, the "Surprise Me" and "Because you liked..." endpoints; the libSQL wishlist (persistence across connections, migrations, corrupt rows, per-device isolation, cap, SQL-injection-shaped input); the CORS allow-list; and the HTTP contract via supertest.
+- *App (Jest + React Native Testing Library, 101 tests):* the real navigators and screens with a fake backend that stores wishlists per device id. It covers loading / empty / error / retry / stale states on every screen; debounce; cancellation of a superseded search (asserting the first request's `AbortSignal` fires); search-mode sort and total behaviour; filters; infinite scroll (append, de-duplicate, next-page failure, 500-page end, empty-page guard); navigation context (Back returns to the same mounted Discover screen with search text, filters and loaded pages intact and no refetch; tab switching; detail from the wishlist; "More like this"; genre jump); the optimistic heart with rollback; wishlist persistence across a simulated app restart (same device id from storage, list read back from the server, and a fresh device sees an empty list); API client behaviour (env-driven base URL, headers, error mapping, non-JSON errors, aborts); the responsive grid maths (including the web-only 2/3/4-column breakpoints); skeleton-to-content fades; swipe-to-remove; recently viewed; offline reads/writes; Surprise Me; recommendations; the taste profile; and movie comparison. The navigation-state tests were mutation-checked (making Discover forget its state on blur makes them fail).
 - These run in Node with faked native modules, so they prove logic and wiring, **not** native rendering or touch behaviour; see Known Limitations. `npm run verify:tmdb` complements them with a one-command check against the *real* TMDB.
 
 ## Assumptions Made
