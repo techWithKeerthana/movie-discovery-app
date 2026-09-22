@@ -31,10 +31,10 @@ let nextFile = 0;
 // Each call opens its own file by default (many separate libSQL connections piling up against ONE file
 // slows Windows' handle release enough to make cleanup flaky). Pass a fixed `file` only for a test that
 // specifically needs to reopen the same database, e.g. to prove persistence across an app restart.
-const build = async (file = `db${nextFile++}.db`) => {
+const build = async (file = `db${nextFile++}.db`, corsOrigin = '*') => {
   const db = await openDatabase(`file:${join(dir, file)}`);
   dbs.push(db);
-  return createApp({ config: { CORS_ORIGIN: '*' }, tmdb: makeClient(tmdb), db });
+  return createApp({ config: { CORS_ORIGIN: corsOrigin }, tmdb: makeClient(tmdb), db });
 };
 afterAll(async () => {
   dbs.forEach((d) => d.close()); // Windows can't delete a directory holding open libSQL files
@@ -133,5 +133,28 @@ describe('wishlist persistence', () => {
     expect((await request(app).put('/api/wishlist/2').set('X-Device-Id', device).send(snap)).status).toBe(400);
     const evil = { ...snap, posterUrl: 'https://evil.example/x.jpg' };
     expect((await request(app).put('/api/wishlist/1').set('X-Device-Id', device).send(evil)).status).toBe(400);
+  });
+});
+
+describe('CORS (comma-separated allow-list, "*." subdomain wildcards)', () => {
+  const allowlist = 'http://localhost:8081,https://trackzio.vercel.app,*.vercel.app';
+
+  it('allows an exact-match origin and any subdomain matching a "*." pattern', async () => {
+    const app = await build(undefined, allowlist);
+    const dev = (await request(app).get('/api/movies').set('Origin', 'http://localhost:8081')).headers['access-control-allow-origin'];
+    expect(dev).toBe('http://localhost:8081');
+    const preview = (await request(app).get('/api/movies').set('Origin', 'https://my-preview-abc123.vercel.app')).headers['access-control-allow-origin'];
+    expect(preview).toBe('https://my-preview-abc123.vercel.app');
+  });
+
+  it('rejects an origin that is not on the allow-list', async () => {
+    const app = await build(undefined, allowlist);
+    const res = await request(app).get('/api/movies').set('Origin', 'https://evil.example');
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('never blocks a request with no Origin header (native app, curl, server-to-server)', async () => {
+    const app = await build(undefined, allowlist);
+    expect((await request(app).get('/api/movies')).status).toBe(200);
   });
 });

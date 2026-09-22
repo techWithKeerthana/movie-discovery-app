@@ -9,7 +9,9 @@ try {
 
 const schema = z.object({
   PORT: z.coerce.number().int().default(4000),
-  CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  // Comma-separated. An entry starting with "*." matches any subdomain (e.g. "*.vercel.app" covers every
+  // preview deploy); the literal "*" allows any origin (tests only — never set this in a real deployment).
+  CORS_ORIGIN: z.string().default('http://localhost:8081,http://localhost:19006,*.vercel.app'),
   TMDB_TOKEN: z.string().optional(), // v4 "API Read Access Token" (preferred)
   TMDB_API_KEY: z.string().optional(), // v3 key fallback
   TMDB_BASE_URL: z.string().default('https://api.themoviedb.org/3'),

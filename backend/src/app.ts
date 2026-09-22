@@ -17,11 +17,27 @@ export interface AppDeps {
   db: Db;
 }
 
+/**
+ * `CORS_ORIGIN` is a comma-separated allow-list (see config.ts). Native requests (Expo Go, the built app)
+ * never send an `Origin` header, so they are unaffected either way — this only gates browser clients.
+ */
+function corsOrigin(configOrigins: string) {
+  const patterns = configOrigins
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (!origin || patterns.includes('*')) return callback(null, true);
+    const allowed = patterns.some((p) => (p.startsWith('*.') ? origin.endsWith(p.slice(1)) : origin === p));
+    callback(null, allowed);
+  };
+}
+
 /** Composition root: everything is injected, so tests can swap in a fake fetch + in-memory DB. */
 export function createApp({ config, tmdb, db }: AppDeps) {
   const app = express();
   app.disable('x-powered-by');
-  app.use(cors({ origin: config.CORS_ORIGIN, exposedHeaders: ['X-Cache'] }));
+  app.use(cors({ origin: corsOrigin(config.CORS_ORIGIN), exposedHeaders: ['X-Cache'] }));
   app.use(express.json({ limit: '10kb' }));
 
   // Protects OUR server (and indirectly our TMDB quota) from a misbehaving client. Generous: infinite

@@ -91,12 +91,6 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
       <Text style={styles.icon}>⚠️</Text>
       <Text style={styles.stateTitle}>Something went wrong</Text>
       <Text style={styles.stateBody}>{message}</Text>
-      {/* TEMP DEBUG: remove before submission (also ApiError.debug in api/client.ts). */}
-      {known ? (
-        <Text selectable style={styles.debug}>
-          {`[debug] code=${known.code} status=${known.debug?.status ?? 'no response'}\n${known.debug?.url ?? ''}${known.debug?.raw ? `\n${known.debug.raw}` : ''}`}
-        </Text>
-      ) : null}
       {retryable && onRetry ? <Button primary label="Try again" onPress={onRetry} /> : null}
     </View>
   );
@@ -154,7 +148,6 @@ const styles = StyleSheet.create({
   icon: { fontSize: 40 },
   stateTitle: { color: colors.text, fontSize: 18, fontWeight: '700', textAlign: 'center' },
   stateBody: { color: colors.muted, fontSize: 14, textAlign: 'center', maxWidth: 320 },
-  debug: { color: colors.muted, fontSize: 11, textAlign: 'center', maxWidth: 320, fontFamily: 'monospace' }, // TEMP DEBUG
   btn: {
     minHeight: TOUCH,
     paddingHorizontal: 18,

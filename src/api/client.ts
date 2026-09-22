@@ -13,8 +13,6 @@ export class ApiError extends Error {
     readonly code: ErrorCode | 'NETWORK',
     message: string,
     readonly retryable: boolean,
-    /** TEMP DEBUG: HTTP status (absent when no response arrived), the URL called, and the raw failure text. */
-    readonly debug?: { status?: number; url: string; raw?: string },
   ) {
     super(message);
   }
@@ -50,7 +48,7 @@ export async function api<T>(path: string, { method = 'GET', body, signal }: Opt
     });
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e; // superseded request: TanStack Query treats it as cancelled
-    throw new ApiError('NETWORK', 'Cannot reach the server. Check your connection.', true, { url, raw: (e as Error).message });
+    throw new ApiError('NETWORK', 'Cannot reach the server. Check your connection.', true);
   }
 
   if (!res.ok) {
@@ -60,10 +58,7 @@ export async function api<T>(path: string, { method = 'GET', body, signal }: Opt
     } catch {
       /* non-JSON error body */
     }
-    throw new ApiError(err?.code ?? 'INTERNAL', err?.message ?? `Request failed (${res.status})`, err?.retryable ?? res.status >= 500, {
-      status: res.status,
-      url,
-    });
+    throw new ApiError(err?.code ?? 'INTERNAL', err?.message ?? `Request failed (${res.status})`, err?.retryable ?? res.status >= 500);
   }
 
   const stale = res.headers.get('X-Cache') === 'stale';
