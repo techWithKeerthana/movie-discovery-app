@@ -1,4 +1,5 @@
 import type { Genre, MovieDetail, MovieQuery, MovieSummary, Page, SortOption } from '@trackzio/shared';
+import { AppError } from '../errors.js';
 import { TmdbClient, type TmdbResult } from '../tmdb/client.js';
 import { parseGenres, parseMovieDetail, parseMoviePage } from '../tmdb/mappers.js';
 
@@ -102,5 +103,56 @@ export class MovieService {
 
   genres(): Promise<TmdbResult<Genre[]>> {
     return this.tmdb.get('/genre/movie/list', { language: 'en' }, TTL.genres, parseGenres);
+  }
+
+  /**
+   * A random decently-rated popular movie: a random page (1-10) of the same discover pipeline the
+   * grid uses (so it shares its cache entry, single-flight, breaker etc.), then a random item on that
+   * page. `rand` is injectable so tests can make the pick deterministic.
+   */
+  async surprise(rand: () => number = Math.random): Promise<TmdbResult<MovieSummary>> {
+    const page = 1 + Math.floor(rand() * 10);
+    const res = await this.tmdb.get(
+      '/discover/movie',
+      {
+        include_adult: false,
+        include_video: false,
+        language: 'en-US',
+        page,
+        sort_by: 'popularity.desc',
+        'vote_average.gte': 6.0,
+        'vote_count.gte': 300,
+      },
+      TTL.discover,
+      parseMoviePage,
+    );
+    const { items } = res.data;
+    if (items.length === 0) throw new AppError('NOT_FOUND', 'No movies available right now');
+    return { data: items[Math.floor(rand() * items.length)]!, stale: res.stale };
+  }
+
+  /**
+   * "Because you liked..." row: the most popular movies in one genre, minus whatever the caller already
+   * has (the wishlist). Genre inference and exclusion happen on the client, which is the only side that
+   * knows the wishlist; this just does the TMDB lookup and filtering.
+   */
+  async recommended(genreId: number, excludeIds: number[]): Promise<TmdbResult<MovieSummary[]>> {
+    const res = await this.tmdb.get(
+      '/discover/movie',
+      {
+        include_adult: false,
+        include_video: false,
+        language: 'en-US',
+        page: 1,
+        sort_by: 'popularity.desc',
+        with_genres: genreId,
+        'vote_count.gte': 100,
+      },
+      TTL.discover,
+      parseMoviePage,
+    );
+    const exclude = new Set(excludeIds);
+    const items = res.data.items.filter((m) => !exclude.has(m.id)).slice(0, 8);
+    return { data: items, stale: res.stale };
   }
 }

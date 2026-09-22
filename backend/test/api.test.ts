@@ -76,6 +76,25 @@ describe('movie routes', () => {
     expect((await request(app).get('/api/movies/1')).body.genres).toHaveLength(1);
   });
 
+  it('GET /api/movies/surprise returns a single normalised movie', async () => {
+    const r = await request(app).get('/api/movies/surprise');
+    expect(r.status).toBe(200);
+    expect(r.body).toHaveProperty('posterUrl');
+    expect(typeof r.body.id).toBe('number');
+  });
+
+  it('GET /api/movies/recommended filters by genre and excludes given ids', async () => {
+    const r = await request(app).get('/api/movies/recommended?genreId=27&excludeIds=1');
+    expect(r.status).toBe(200);
+    expect(r.body.map((m: { id: number }) => m.id)).toEqual([2]);
+    const upstream = tmdb.calls.filter((c) => c.startsWith('/3/discover/movie')).at(-1)!;
+    expect(upstream).toContain('with_genres=27');
+  });
+
+  it('GET /api/movies/recommended requires genreId', async () => {
+    expect((await request(app).get('/api/movies/recommended')).status).toBe(400);
+  });
+
   it('unknown api route returns JSON 404', async () => {
     const r = await request(app).get('/api/nope');
     expect(r.status).toBe(404);

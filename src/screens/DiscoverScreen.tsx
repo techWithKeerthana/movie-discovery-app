@@ -2,21 +2,25 @@ import { useNavigation, useScrollToTop } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SORT_OPTIONS, type MovieSummary } from '@trackzio/shared';
+import { moviesApi } from '../api/movies';
 import { FadeIn } from '../components/FadeIn';
 import { GenreChips } from '../components/GenreChips';
 import { MovieList } from '../components/MovieList';
 import { OptionPicker, type Option } from '../components/OptionPicker';
 import { RecentlyViewedRow } from '../components/RecentlyViewedRow';
+import { RecommendedRow } from '../components/RecommendedRow';
 import { SearchBar } from '../components/SearchBar';
 import { Button, EmptyState, ErrorState, InlineError, SkeletonGrid, SlowHint, StaleBanner, useSlowHint } from '../components/States';
+import { useToast } from '../components/Toast';
 import { H_PADDING } from '../hooks/useColumns';
 import { useGenres, useMovieList, type Filters } from '../hooks/queries';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
+import { useRecommendations } from '../hooks/useRecommendations';
 import type { RootStackParamList, TabParamList } from '../navigation/types';
-import { colors } from '../theme';
+import { colors, radius, TOUCH } from '../theme';
 
 const TMDB_PAGE_CAP = 500;
 const INITIAL: Filters = { q: '', sort: 'popularity.desc' };
@@ -38,7 +42,23 @@ export function DiscoverScreen({ route }: BottomTabScreenProps<TabParamList, 'Di
   const listRef = useRef<FlatList<MovieSummary>>(null);
   useScrollToTop(listRef); // tapping the active tab scrolls back to the top
   const recentlyViewed = useRecentlyViewed();
+  const recommended = useRecommendations();
   const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const toast = useToast();
+  const [surprising, setSurprising] = useState(false);
+
+  const onSurprise = useCallback(async () => {
+    if (surprising) return;
+    setSurprising(true);
+    try {
+      const r = await moviesApi.surprise();
+      rootNavigation.navigate('MovieDetail', { id: r.data.id, title: r.data.title });
+    } catch {
+      toast("Couldn't find a movie, try again");
+    } finally {
+      setSurprising(false);
+    }
+  }, [surprising, rootNavigation, toast]);
 
   const searching = Boolean(filters.q);
   // While searching, sort is always relevance (TMDB cannot sort search results). The chosen sort is kept in state so it
@@ -78,6 +98,10 @@ export function DiscoverScreen({ route }: BottomTabScreenProps<TabParamList, 'Di
 
   const header = (
     <View style={styles.header}>
+      <RecommendedRow
+        movies={recommended.movies}
+        onOpen={(m) => rootNavigation.navigate('MovieDetail', { id: m.id, title: m.title })}
+      />
       <RecentlyViewedRow movies={recentlyViewed} onOpen={(m) => rootNavigation.navigate('MovieDetail', { id: m.id, title: m.title })} />
       <GenreChips genres={genres.data} selected={filters.genre} onSelect={(genre) => update({ genre })} />
       <View style={styles.pickers}>
@@ -152,7 +176,18 @@ export function DiscoverScreen({ route }: BottomTabScreenProps<TabParamList, 'Di
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.searchRow}>
-        <SearchBar value={filters.q} onChange={(q) => update({ q })} />
+        <View style={styles.searchInputWrap}>
+          <SearchBar value={filters.q} onChange={(q) => update({ q })} />
+        </View>
+        <Pressable
+          onPress={onSurprise}
+          disabled={surprising}
+          accessibilityRole="button"
+          accessibilityLabel="Surprise me with a random movie"
+          style={({ pressed }) => [styles.surpriseBtn, pressed && { opacity: 0.85 }]}
+        >
+          {surprising ? <ActivityIndicator testID="surprise-spinner" color={colors.accentInk} /> : <Text style={styles.surpriseText}>🎲 Surprise Me</Text>}
+        </Pressable>
       </View>
       <FadeIn ready={!isPending} style={styles.fade}>
         <MovieList
@@ -175,7 +210,18 @@ export function DiscoverScreen({ route }: BottomTabScreenProps<TabParamList, 'Di
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   fade: { flex: 1 },
-  searchRow: { paddingHorizontal: H_PADDING, paddingTop: 8, paddingBottom: 8 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: H_PADDING, paddingTop: 8, paddingBottom: 8 },
+  searchInputWrap: { flex: 1 },
+  surpriseBtn: {
+    minHeight: TOUCH,
+    minWidth: TOUCH,
+    paddingHorizontal: 12,
+    borderRadius: radius,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  surpriseText: { color: colors.accentInk, fontWeight: '700', fontSize: 13 },
   header: { gap: 12, paddingBottom: 12 },
   pickers: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },

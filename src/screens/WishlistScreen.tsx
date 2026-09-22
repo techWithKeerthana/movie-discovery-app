@@ -1,17 +1,19 @@
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { StyleSheet, Text, View } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FadeIn } from '../components/FadeIn';
 import { MovieList } from '../components/MovieList';
 import { Button, EmptyState, ErrorState, SkeletonGrid } from '../components/States';
 import { useWishlist } from '../hooks/useWishlist';
-import type { TabParamList } from '../navigation/types';
-import { colors } from '../theme';
+import type { RootStackParamList, TabParamList } from '../navigation/types';
+import { colors, TOUCH } from '../theme';
 
 export function WishlistScreen() {
   const { query, items } = useWishlist();
   const navigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
+  const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   let empty: React.ReactElement | null = null;
   if (query.isPending) empty = <SkeletonGrid count={6} />;
@@ -25,10 +27,20 @@ export function WishlistScreen() {
 
   const header = (
     <View style={styles.headRow}>
-      <Text style={styles.h1} accessibilityRole="header">
-        Your wishlist
-      </Text>
-      {items.length > 0 && <Text style={styles.count}>{items.length} saved</Text>}
+      <View>
+        <Text style={styles.h1} accessibilityRole="header">
+          Your wishlist
+        </Text>
+        {items.length > 0 && <Text style={styles.count}>{items.length} saved</Text>}
+      </View>
+      <Pressable
+        onPress={() => rootNavigation.navigate('TasteProfile')}
+        accessibilityRole="button"
+        accessibilityLabel="Your Taste"
+        style={({ pressed }) => [styles.tasteBtn, pressed && { opacity: 0.85 }]}
+      >
+        <Text style={styles.tasteBtnText}>Your Taste</Text>
+      </Pressable>
     </View>
   );
 
@@ -52,7 +64,9 @@ export function WishlistScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   fade: { flex: 1 },
-  headRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingTop: 12, paddingBottom: 12 },
+  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 12, paddingBottom: 12 },
   h1: { color: colors.text, fontSize: 22, fontWeight: '700' },
   count: { color: colors.muted, fontSize: 13 },
+  tasteBtn: { minHeight: TOUCH - 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
+  tasteBtnText: { color: colors.text, fontWeight: '600', fontSize: 13 },
 });

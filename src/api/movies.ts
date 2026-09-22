@@ -12,6 +12,9 @@ export const moviesApi = {
   list: (q: MovieQuery, signal?: AbortSignal) => api<Page<MovieSummary>>(`/movies${qs(q)}`, { signal }),
   detail: (id: number, signal?: AbortSignal) => api<MovieDetail>(`/movies/${id}`, { signal }),
   genres: (signal?: AbortSignal) => api<Genre[]>('/genres', { signal }),
+  surprise: (signal?: AbortSignal) => api<MovieSummary>('/movies/surprise', { signal }),
+  recommended: (genreId: number, excludeIds: number[], signal?: AbortSignal) =>
+    api<MovieSummary[]>(`/movies/recommended?genreId=${genreId}&excludeIds=${excludeIds.join(',')}`, { signal }),
 };
 
 export const wishlistApi = {

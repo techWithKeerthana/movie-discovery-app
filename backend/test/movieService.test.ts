@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AppError } from '../src/errors.js';
 import { MovieService } from '../src/services/movieService.js';
 import { fakeFetch, json, makeClient, movie, pageOf } from './helpers.js';
 
@@ -82,5 +83,44 @@ describe('MovieService search mode (relevance order; genre/rating refine each pa
     const r = await svc.list({ query: 'x', sort: 'rating.desc', genre: 18, minRating: 7 });
     expect(lastQuery(f).has('sort_by')).toBe(false);
     expect(r.data.items.map((m) => m.id)).toEqual([2]);
+  });
+});
+
+describe('MovieService.surprise', () => {
+  it('picks a random page 1-10 and a random item on it, with a rating floor', async () => {
+    const { f, svc } = setup([movie({ id: 1 }), movie({ id: 2 }), movie({ id: 3 })]);
+    // rand() sequence: 0.95 -> page 10; second call 0.6 of 3 items -> index 1 -> id 2
+    let n = 0;
+    const rand = () => [0.95, 0.6][n++]!;
+    const r = await svc.surprise(rand);
+    const q = lastQuery(f);
+    expect(q.get('page')).toBe('10');
+    expect(q.get('vote_average.gte')).toBe('6');
+    expect(q.get('vote_count.gte')).toBe('300');
+    expect(r.data.id).toBe(2);
+  });
+
+  it('throws NOT_FOUND rather than crashing when the picked page has no results', async () => {
+    const { svc } = setup([]);
+    await expect(svc.surprise(() => 0)).rejects.toThrow(AppError);
+  });
+});
+
+describe('MovieService.recommended', () => {
+  it('filters by genre upstream and excludes the given ids client-side, capped at 8', async () => {
+    const items = Array.from({ length: 10 }, (_, i) => movie({ id: i + 1 }));
+    const { f, svc } = setup(items);
+    const r = await svc.recommended(18, [1, 2, 3]);
+    const q = lastQuery(f);
+    expect(q.get('with_genres')).toBe('18');
+    expect(r.data.map((m) => m.id)).not.toContain(1);
+    expect(r.data).toHaveLength(7); // 10 - 3 excluded, under the cap of 8
+  });
+
+  it('caps at 8 even with nothing excluded', async () => {
+    const items = Array.from({ length: 20 }, (_, i) => movie({ id: i + 1 }));
+    const { svc } = setup(items);
+    const r = await svc.recommended(18, []);
+    expect(r.data).toHaveLength(8);
   });
 });

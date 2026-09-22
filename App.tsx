@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { navTheme, RootNavigator } from './src/navigation/RootNavigator';
+import { CompareBanner } from './src/components/CompareBanner';
+import { CompareProvider } from './src/components/CompareContext';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import { ToastProvider } from './src/components/Toast';
 import { useOnline } from './src/hooks/useOnline';
@@ -22,13 +24,16 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <ToastProvider>
-            <NavigationContainer theme={navTheme}>
-              <RootNavigator />
-            </NavigationContainer>
-            <OfflineBanner />
-            <OfflineSync />
-          </ToastProvider>
+          <CompareProvider>
+            <ToastProvider>
+              <NavigationContainer theme={navTheme}>
+                <RootNavigator />
+              </NavigationContainer>
+              <OfflineBanner />
+              <CompareBanner />
+              <OfflineSync />
+            </ToastProvider>
+          </CompareProvider>
           <StatusBar style="light" />
         </QueryClientProvider>
       </SafeAreaProvider>

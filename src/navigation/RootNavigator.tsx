@@ -3,8 +3,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { DarkTheme, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useWishlist } from '../hooks/useWishlist';
+import { CompareScreen } from '../screens/CompareScreen';
 import { DiscoverScreen } from '../screens/DiscoverScreen';
 import { MovieDetailScreen } from '../screens/MovieDetailScreen';
+import { TasteProfileScreen } from '../screens/TasteProfileScreen';
 import { WishlistScreen } from '../screens/WishlistScreen';
 import { colors } from '../theme';
 import type { RootStackParamList, TabParamList } from './types';
@@ -70,6 +72,8 @@ export function RootNavigator() {
         component={MovieDetailScreen}
         options={({ route }) => ({ title: route.params.title ?? 'Movie', headerBackTitle: 'Back' })}
       />
+      <Stack.Screen name="TasteProfile" component={TasteProfileScreen} options={{ title: 'Your Taste', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="Compare" component={CompareScreen} options={{ title: 'Compare', headerBackTitle: 'Back' }} />
     </Stack.Navigator>
   );
 }

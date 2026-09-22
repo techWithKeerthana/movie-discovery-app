@@ -4,6 +4,8 @@ import { render } from '@testing-library/react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import type { MovieSummary, Page } from '@trackzio/shared';
+import { CompareBanner } from '../components/CompareBanner';
+import { CompareProvider } from '../components/CompareContext';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { ToastProvider } from '../components/Toast';
 import { useOnline } from '../hooks/useOnline';
@@ -77,6 +79,8 @@ export function mockApi(override?: Override) {
   const standard: Override = (url, init) => {
     const method = init?.method ?? 'GET';
     if (url.pathname === '/api/genres') return jsonRes([{ id: 18, name: 'Drama' }, { id: 28, name: 'Action' }]);
+    if (url.pathname === '/api/movies/surprise') return jsonRes(summary(999, { title: 'Surprise Movie' }));
+    if (url.pathname === '/api/movies/recommended') return jsonRes([]);
     if (url.pathname === '/api/wishlist') return jsonRes({ items: wishlists.get(deviceOf(init) ?? '') ?? [] });
     const w = url.pathname.match(/^\/api\/wishlist\/(\d+)$/);
     if (w) {
@@ -129,13 +133,16 @@ export async function renderApp() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <ToastProvider>
-            <NavigationContainer ref={navRef} theme={navTheme}>
-              <RootNavigator />
-            </NavigationContainer>
-            <OfflineBanner />
-            <OfflineSync />
-          </ToastProvider>
+          <CompareProvider>
+            <ToastProvider>
+              <NavigationContainer ref={navRef} theme={navTheme}>
+                <RootNavigator />
+              </NavigationContainer>
+              <OfflineBanner />
+              <CompareBanner />
+              <OfflineSync />
+            </ToastProvider>
+          </CompareProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

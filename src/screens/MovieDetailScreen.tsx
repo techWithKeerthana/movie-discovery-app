@@ -6,6 +6,7 @@ import type { MovieDetail, MovieSummary } from '@trackzio/shared';
 import { toSummary } from '../api/movies';
 import { MovieCard } from '../components/MovieCard';
 import { PosterImage } from '../components/PosterImage';
+import { useCompare } from '../components/CompareContext';
 import { FadeIn } from '../components/FadeIn';
 import { ErrorState, SkeletonBlock, SlowHint, StaleBanner, useSlowHint } from '../components/States';
 import { useToast } from '../components/Toast';
@@ -109,6 +110,7 @@ export function MovieDetailScreen({ route, navigation }: Props) {
             <Text style={styles.overview}>{m.overview || 'No overview is available for this movie yet.'}</Text>
             <View style={styles.actions}>
               <WishlistButton movie={m} />
+              <CompareButton movie={m} navigation={navigation} />
               {m.trailerKey ? (
                 <Pressable style={styles.btn} onPress={openTrailer} accessibilityRole="button" accessibilityLabel="Watch trailer">
                   <Text style={styles.btnText}>▶ Watch trailer</Text>
@@ -165,6 +167,25 @@ function WishlistButton({ movie }: { movie: MovieDetail }) {
       style={[styles.btn, wished ? styles.btnWished : styles.btnPrimary]}
     >
       <Text style={[styles.btnText, !wished && { color: colors.accentInk }]}>{wished ? '♥ In your wishlist' : '♡ Add to wishlist'}</Text>
+    </Pressable>
+  );
+}
+
+function CompareButton({ movie, navigation }: { movie: MovieDetail; navigation: Props['navigation'] }) {
+  const { selected, pick } = useCompare();
+  const isSelected = selected?.id === movie.id;
+  return (
+    <Pressable
+      onPress={() => {
+        const other = pick(movie);
+        if (other) navigation.navigate('Compare', { a: other, b: movie });
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={isSelected ? `Cancel comparing ${movie.title}` : `Compare ${movie.title}`}
+      accessibilityState={{ selected: isSelected }}
+      style={[styles.btn, isSelected && styles.btnWished]}
+    >
+      <Text style={styles.btnText}>{isSelected ? '✕ Comparing' : '⇄ Compare'}</Text>
     </Pressable>
   );
 }
