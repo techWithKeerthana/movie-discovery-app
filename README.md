@@ -124,7 +124,7 @@ A follow-up discussion or live coding session may follow submission, possibly wi
 
 | | URL |
 |---|---|
-| Web app (Vercel) | `<TODO: paste your Vercel deployment URL here>` |
+| Web app (Vercel) | `https://movie-discovery-app-backend-gp3vqhudw-km07.vercel.app` |
 | Backend API (Render) | `https://trackzio-backend.onrender.com` |
 | Repository (GitHub) | `https://github.com/techWithKeerthana/movie-discovery-app` |
 
