@@ -1,0 +1,14 @@
+﻿node_modules/
+dist/
+dist-check/
+.env
+.env.local
+*.log
+backend/data/
+
+# Expo (generated)
+.expo/
+expo-env.d.ts
+
+# local tooling
+.claude/
